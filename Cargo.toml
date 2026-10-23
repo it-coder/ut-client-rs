@@ -19,11 +19,12 @@ rpassword = "7"
 # 只开实际用到的异步运行时特性（kuma-client 侧已同步裁剪，见 vendor）
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
-# Linux 下 kuma-client 的 native-tls 依赖系统 OpenSSL。交叉编译（尤其 aarch64）时
-# 容器内没有目标架构的 openssl-dev，pkg-config 找不到 openssl.pc 会直接失败。
-# 这里通过 feature 统一启用 vendored：从源码静态编译 OpenSSL，
-# CI 无需安装 libssl-dev，产物也不再依赖运行时的 libssl/libcrypto。
-[target.'cfg(target_os = "linux")'.dependencies]
+# 仅对 cross 交叉编译的 aarch64 Linux 静态编入 OpenSSL（vendored）：
+# 容器内没有目标架构的 openssl-dev，pkg-config 找不到 openssl.pc 会直接失败，
+# vendored 从源码编译可绕开，且产物不依赖运行时 libssl/libcrypto。
+# x86_64-unknown-linux-gnu 在原生 runner 上编译，用系统 OpenSSL 动态链接即可
+# （静态编入会令二进制从约 2MB 涨到 8MB），运行时需 glibc 环境装有 libssl3。
+[target.aarch64-unknown-linux-gnu.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 
 [profile.release]

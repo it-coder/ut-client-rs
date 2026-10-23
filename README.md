@@ -181,6 +181,13 @@ ut-client-rs/
 - `vendor/`（kuma-client 本地补丁）**必须提交到仓库**，CI 依赖它，`.gitignore` 已放行。
 - Linux 产物依赖 glibc（在 ubuntu-22.04 上构建，兼容性较好）；因 kuma-client 使用
   `native-tls`（需 OpenSSL），暂不提供 musl 静态链接版本。
+- **OpenSSL 链接策略差异**：
+  - `x86_64-unknown-linux-gnu`：系统 OpenSSL **动态链接**（二进制约 2 MB），
+    运行环境需已安装 `libssl3`（Ubuntu 20.04+/Debian 11+/RHEL 9 等主流发行版均自带；
+    若缺失执行 `apt install libssl3` 或对应包即可）。
+  - `aarch64-unknown-linux-gnu`：cross 容器内无目标架构 openssl-dev，
+    以 `openssl/vendored`（`Cargo.toml` 中 `[target.aarch64-unknown-linux-gnu.dependencies]`）
+    **静态编入**（二进制约 8 MB），但零运行时依赖，任何 aarch64 glibc 环境可直接跑。
 
 ## License
 
