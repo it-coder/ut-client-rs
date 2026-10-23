@@ -135,6 +135,32 @@ ut-client-rs/
 
 若后续官方版本修复，可直接移除 `[patch.crates-io]` 段落与 `vendor/` 目录。
 
+## 跨平台构建（GitHub Actions）
+
+仓库内置 `.github/workflows/release.yml`，覆盖 5 个目标：
+
+| 目标 | 构建方式 | 产物 |
+| --- | --- | --- |
+| `x86_64-unknown-linux-gnu` | ubuntu-22.04 原生 | `ut-client-<tag>-x86_64-unknown-linux-gnu.tar.gz` |
+| `aarch64-unknown-linux-gnu` | `cross` 容器交叉编译 | `ut-client-<tag>-aarch64-unknown-linux-gnu.tar.gz` |
+| `x86_64-apple-darwin` | macos-13 原生 | `.tar.gz` |
+| `aarch64-apple-darwin` | macos-14 原生（Apple Silicon） | `.tar.gz` |
+| `x86_64-pc-windows-msvc` | windows-latest 原生 | `.zip` |
+
+触发方式：
+
+- **发版**：打 tag 推送即构建并自动挂到 GitHub Release：
+  ```bash
+  git tag v0.1.0 && git push origin v0.1.0
+  ```
+- **手动**：Actions 页面选择 Release 工作流 → Run workflow（产物在 workflow artifacts 里）。
+
+注意事项：
+
+- `vendor/`（kuma-client 本地补丁）**必须提交到仓库**，CI 依赖它，`.gitignore` 已放行。
+- Linux 产物依赖 glibc（在 ubuntu-22.04 上构建，兼容性较好）；因 kuma-client 使用
+  `native-tls`（需 OpenSSL），暂不提供 musl 静态链接版本。
+
 ## License
 
 MIT

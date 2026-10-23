@@ -3,7 +3,9 @@
 /dist
 .DS_Store
 .workbuddy
-vendor
+
+**/target
+# 注意：vendor/ 必须提交！CI 依赖其中的 kuma-client 本地补丁（[patch.crates-io]）
 
 # 本地实际使用的配置（可能含密码）；模板见 config.example.toml
 /config.toml

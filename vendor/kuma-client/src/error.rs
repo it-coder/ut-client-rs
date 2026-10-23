@@ -1,0 +1,131 @@
+use std::time::SystemTimeError;
+
+use thiserror::Error;
+
+/// Custom error type for handling various errors in the kuma_client library.
+#[derive(Error, Debug)]
+pub enum Error {
+    /// The config contains an invalid url.
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
+    /// Connection timeout error while trying to connect to the Uptime Kuma server.
+    #[error("Timeout while trying to connect to Uptime Kuma server")]
+    ConnectionTimeout,
+
+    /// Timeout error while trying to call a specific function.
+    #[error("Timeout while trying to call '{0}'.")]
+    CallTimeout(String),
+
+    /// Attempt to access Uptime Kuma state before it was ready.
+    #[error("Tried to access Uptime Kuma state before it was ready...")]
+    NotReady,
+
+    /// The login details were rejected by the server.
+    #[error("The server rejected the login: {0}")]
+    LoginError(String),
+
+    /// Error when the server expects a username/password, but none was provided.
+    #[error("It looks like the server is expecting a username/password, but none was provided")]
+    NotAuthenticated,
+
+    /// Error when mfa is enabled, but no token/secret was provided.
+    #[error("MFA enabled, but no token/secret was provided")]
+    TokenRequired,
+
+    /// Connection loss to Uptime Kuma.
+    #[error("Connection to Uptime Kuma was lost")]
+    Disconnected,
+
+    /// Invalid response from the server with a missing key.
+    #[error("Received invalid response from server (missing key '{1}'): {0:?}")]
+    InvalidResponse(Vec<serde_json::Value>, String),
+
+    /// The server responded with an unexpected error.
+    #[error("Server responded with an error: {0}")]
+    ServerError(String),
+
+    /// Unsupported message received from the server.
+    #[error("Received unsupported message from server")]
+    UnsupportedResponse,
+
+    /// Communication error.
+    #[error("Error during communication: {0}")]
+    CommunicationError(String),
+
+    /// Validation error with a field name and a list of validation errors.
+    #[error("Encountered errors trying to validate '{0}': {1:?}")]
+    ValidationError(String, Vec<String>),
+
+    /// Error when an entity with a specific ID is not found.
+    #[error("No {0} with ID {1} could be found")]
+    IdNotFound(String, i32),
+
+    /// Error when an entity with a specific slug is not found.
+    #[error("No {0} with slug {1} could be found")]
+    SlugNotFound(String, String),
+
+    /// Error when unable to load a custom TLS certificate.
+    #[error("Unable to load custom tls cert {0}: {1}")]
+    InvalidTlsCert(String, String),
+
+    /// Wrapper for an underlying reqwest error.
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+
+    /// Wrapper for an underlying totp_rs error.
+    #[error(transparent)]
+    Totp(#[from] TotpError),
+
+    /// Error when a monitor references an invalid or non-existent entity.
+    #[error(transparent)]
+    InvalidReference(#[from] InvalidReferenceError),
+}
+
+/// Custom result type for handling various errors in the kuma_client library.
+pub type Result<T> = std::result::Result<T, Error>;
+
+/// Wrapper error type for totp_rs errors.
+#[derive(Error, Debug)]
+pub enum TotpError {
+    /// Wrapper for an underlying totp_rs::TotpUrlError error.
+    #[error(transparent)]
+    TotpUrlError(#[from] totp_rs::TotpUrlError),
+
+    /// Wrapper for an underlying totp_rs::SecretParseError error.
+    #[error(transparent)]
+    SecretParseError(#[from] totp_rs::SecretParseError),
+
+    /// Wrapper for an underlying totp_rs::Rfc6238Error error.
+    #[error(transparent)]
+    Rfc6238Error(#[from] totp_rs::Rfc6238Error),
+
+    /// Wrapper for an underlying SystemTimeError error.
+    #[error(transparent)]
+    SystemTimeError(#[from] SystemTimeError),
+}
+
+/// Custom result type for handling totp_rs errors.
+pub type TotpResult<T> = std::result::Result<T, TotpError>;
+
+/// This error indicates that a monitor references an invalid or non-existent entity.
+#[derive(Error, Debug)]
+pub enum InvalidReferenceError {
+    /// The parent monitor ID is invalid.
+    #[error("Unknown parent monitor ID {0}")]
+    InvalidParent(String),
+
+    /// The referenced notification ID is invalid.
+    #[error("Unknown notification ID {0}")]
+    InvalidNotification(String),
+
+    /// The referenced monitor ID is invalid.
+    #[error("Unknown docker host ID {0}")]
+    InvalidDockerHost(String),
+}
+
+impl From<Error> for Vec<Error> {
+    fn from(err: Error) -> Self {
+        vec![err]
+    }
+}
