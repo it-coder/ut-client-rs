@@ -1,0 +1,29 @@
+[package]
+name = "ut-client"
+version = "0.1.0"
+edition = "2021"
+description = "Uptime Kuma 拨测任务清理 CLI 工具"
+authors = ["lih"]
+
+[[bin]]
+name = "ut-client"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+env_logger = "0.11"
+kuma-client = "2.0.0"
+rpassword = "7"
+tokio = { version = "1", features = ["full"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+# 本地补丁：修复 kuma-client 2.0.0 无法反序列化新版 Uptime Kuma 返回的大写
+# HttpBodyEncoding（"JSON"/"FORM"/"XML"）导致 MonitorList 解析 panic 的问题。
+# 补丁内容见 vendor/kuma-client/src/models/monitor.rs。
+[patch.crates-io]
+kuma-client = { path = "vendor/kuma-client" }
