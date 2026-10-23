@@ -106,12 +106,33 @@ kuma-client 内部被吞掉的登录错误会以 `WARN` 行打印在报错信息
 
 ```
 ut-client-rs/
-├── Cargo.toml          # 依赖：kuma-client、clap、tokio、anyhow、rpassword
+├── Cargo.toml          # 依赖：kuma-client、clap、tokio、anyhow、log、rpassword
 ├── src/
-│   └── main.rs         # CLI 定义 + 连接 / 列表 / 删除逻辑
+│   └── main.rs         # CLI 定义 + 连接 / 列表 / 删除逻辑 + 极简 logger
+├── vendor/kuma-client  # 本地补丁版 kuma-client（版本兼容 + 体积裁剪）
+├── .github/workflows/
+│   └── release.yml     # 多平台打包
 └── target/release/
-    └── ut-client       # 单文件可执行产物（约 4.8M，strip + lto）
+    └── ut-client       # 单文件产物（约 1.9 MB）
 ```
+
+## 体积优化
+
+产物从 **4.95 MB 降到 1.88 MB（-62%）**，手段与收益：
+
+| 措施 | 位置 | 收益 |
+| --- | --- | --- |
+| `opt-level="z"` + `panic="abort"` + fat LTO + 单 CGU | `Cargo.toml` profile | 4.95 → 2.72 MB |
+| 移除 `regex` 全家桶（regex/automata/syntax/aho-corasick），两处用法手写替代 | vendor + 自实现 logger | 2.72 → 1.88 MB |
+| `env_logger` 换成 30 行自实现 logger（保留 `RUST_LOG` 语义） | `src/main.rs` | 同上（env_filter 依赖 regex） |
+| `clap` 关闭 color/suggestions 默认特性 | `Cargo.toml` | 小幅 |
+| `tokio` 从 `full` 裁剪为实际所需特性 | `Cargo.toml` + vendor | 小幅 |
+| 移除未被使用的 `config` crate（连带 toml/yaml/ron/json5） | vendor | 依赖更干净，加速 CI |
+
+裁剪仍保留原有行为：日志级别、`--help` 输出、错误提示均与之前一致，vendor 回归测试 5/5 通过。
+
+如需进一步压缩，可在 CI 增加 nightly 的 `-Z build-std=std,panic_abort` +
+`panic_immediate_abort`（通常再降 20–30%），代价是需要 nightly 工具链。
 
 ## 实现要点
 
@@ -131,7 +152,7 @@ ut-client-rs/
 2. **新增 `smtp` 拨测类型**：Uptime Kuma 2.0.x 新增 `smtp` 类型，原版 kuma-client 不认识，解析即 panic。补丁新增 `MonitorSmtp` 结构体及 `MonitorType::Smtp` / `Monitor::Smtp` 变体。
 3. **小数数值兜底**：`src/deserialize.rs` 的 `DeserializeNumberLenient` 原版遇小数值（如 `3.5`）直接报 `Unable to represent 3.5 as i32`；补丁改为四舍五入转整数，数值与字符串路径均兼容。
 
-回归测试见 `vendor/kuma-client/tests/encoding_alias_test.rs`（4 个用例，含 smtp 反序列化）。
+回归测试见 `vendor/kuma-client/tests/encoding_alias_test.rs`（5 个用例，含 smtp 反序列化与小数兼容）。
 
 若后续官方版本修复，可直接移除 `[patch.crates-io]` 段落与 `vendor/` 目录。
 

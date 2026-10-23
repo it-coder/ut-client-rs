@@ -52,13 +52,8 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # kuma-client 依赖 native-tls，Linux 需要 OpenSSL
-      - name: Install OpenSSL (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev
-
+      # kuma-client 依赖 native-tls -> openssl；Linux 目标已启用 vendored（见 Cargo.toml），
+      # 静态编译 OpenSSL，无需在 CI 安装 libssl-dev，也不依赖运行时的 libssl。
       - name: Install cross
         if: matrix.cross
         uses: taiki-e/install-action@v2

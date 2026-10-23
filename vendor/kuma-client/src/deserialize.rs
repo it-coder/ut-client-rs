@@ -7,7 +7,7 @@ use serde::{
 use serde_json::Value;
 use serde_with::{DeserializeAs, SerializeAs};
 use std::{collections::HashMap, hash::Hash, marker::PhantomData, str::FromStr};
-use time::{format_description::well_known::Iso8601, PrimitiveDateTime, Time};
+use time::{format_description::well_known::Iso8601, format_description::well_known::Rfc3339, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 pub struct DeserializeNumberLenient;
 
@@ -251,12 +251,11 @@ impl<'de> DeserializeAs<'de, Option<Range<PrimitiveDateTime>>> for SerializeDate
                 .into_iter()
                 .map(|o| {
                     o.map(|s| -> Result<PrimitiveDateTime, D::Error> {
-                        if let Ok(dt) = dateparser::parse(&s) {
-                            return Ok(PrimitiveDateTime::parse(
-                                &dt.to_rfc3339(),
-                                &Iso8601::DATE_TIME,
-                            )
-                            .unwrap());
+                        // 本地补丁：原用 dateparser（会引入 regex 全家桶），
+                        // 改为按 RFC3339 解析，体积更小；解析失败再走下方 Iso8601 分支
+                        if let Ok(dt) = OffsetDateTime::parse(&s, &Rfc3339) {
+                            let dt = dt.to_offset(UtcOffset::UTC);
+                            return Ok(PrimitiveDateTime::new(dt.date(), dt.time()));
                         }
                         if let Ok(dt) = PrimitiveDateTime::parse(&s, &Iso8601::DATE_TIME) {
                             return Ok(dt);

@@ -47,15 +47,10 @@ path = "examples/create_monitor.rs"
 name = "get_monitors"
 path = "examples/get_monitors.rs"
 
-[dependencies.config]
-version = "0.15.11"
-
+# 本地补丁：config crate 未被实际使用（lib.rs 中的 config 为本地模块），移除以减小体积
 [dependencies.const-str]
 version = "0.7.0"
 features = ["proc"]
-
-[dependencies.dateparser]
-version = "0.2.1"
 
 [dependencies.derivative]
 version = "2.2.0"
@@ -71,9 +66,6 @@ version = "0.4.22"
 
 [dependencies.native-tls]
 version = "0.2.12"
-
-[dependencies.regex]
-version = "1.11.1"
 
 [dependencies.reqwest]
 version = "0.12.9"
@@ -125,7 +117,8 @@ features = ["serde"]
 
 [dependencies.tokio]
 version = "1.41.1"
-features = ["full"]
+# 本地补丁：原为 ["full"]，为减小产物体积裁剪到实际用到的特性
+features = ["rt", "rt-multi-thread", "time", "sync", "macros", "net", "io-util"]
 
 [dependencies.totp-rs]
 version = "5.6.0"

@@ -11,14 +11,26 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4", features = ["derive", "env"] }
-env_logger = "0.11"
+# 关闭默认特性（color / suggestions），只保留 derive + help/usage
+clap = { version = "4", default-features = false, features = ["std", "derive", "env", "help", "usage"] }
+log = "0.4"
 kuma-client = "2.0.0"
 rpassword = "7"
-tokio = { version = "1", features = ["full"] }
+# 只开实际用到的异步运行时特性（kuma-client 侧已同步裁剪，见 vendor）
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+# Linux 下 kuma-client 的 native-tls 依赖系统 OpenSSL。交叉编译（尤其 aarch64）时
+# 容器内没有目标架构的 openssl-dev，pkg-config 找不到 openssl.pc 会直接失败。
+# 这里通过 feature 统一启用 vendored：从源码静态编译 OpenSSL，
+# CI 无需安装 libssl-dev，产物也不再依赖运行时的 libssl/libcrypto。
+[target.'cfg(target_os = "linux")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
 
 [profile.release]
-strip = true
+# 体积优化：z 优先压体积；abort 去掉 unwind 表；strip 去掉符号；单 CGU + fat LTO 便于跨 crate 裁剪
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
 lto = true
 codegen-units = 1
 

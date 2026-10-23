@@ -263,10 +263,53 @@ async fn cmd_delete(conn: &ConnArgs, ids: Vec<i32>, all: bool, yes: bool) -> Res
     Ok(())
 }
 
+/// 极简日志实现：仅输出 `LEVEL target: message` 到 stderr。
+/// 用 ~30 行替代 env_logger（其 env_filter 会引入 regex 全家桶，约占 270KB 体积）。
+struct SimpleLogger {
+    level: log::LevelFilter,
+}
+
+impl log::Log for SimpleLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= self.level
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            eprintln!(
+                "[{} {}] {}",
+                record.level(),
+                record.target(),
+                record.args()
+            );
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+fn init_logger() {
+    let level = match std::env::var("RUST_LOG")
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "off" => log::LevelFilter::Off,
+        "error" => log::LevelFilter::Error,
+        "warn" => log::LevelFilter::Warn,
+        "debug" => log::LevelFilter::Debug,
+        "trace" => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Info,
+    };
+    let logger = Box::leak(Box::new(SimpleLogger { level }));
+    log::set_logger(logger).ok();
+    log::set_max_level(level);
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // 初始化日志：让 kuma-client 内部被吞掉的登录错误等 warn 信息可见
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    init_logger();
 
     let cli = Cli::parse();
     match cli.command {

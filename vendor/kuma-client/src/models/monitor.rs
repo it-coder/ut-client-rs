@@ -9,7 +9,6 @@ use crate::{
     models::tag::Tag,
 };
 use derivative::Derivative;
-use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_inline_default::serde_inline_default;
 use serde_with::{serde_as, skip_serializing_none};
@@ -1474,8 +1473,10 @@ impl Monitor {
 
         if let &Monitor::Push { value } = &self {
             if let Some(push_token) = &value.push_token {
-                let regex = Regex::new("^[A-Za-z0-9]{32}$").unwrap();
-                if !regex.is_match(&push_token) {
+                // 本地补丁：原用正则 ^[A-Za-z0-9]{32}$ 校验，改为等价的手写判断以移除 regex 依赖
+                let valid = push_token.len() == 32
+                    && push_token.chars().all(|c| c.is_ascii_alphanumeric());
+                if !valid {
                     errors.push("Invalid push_token, push token should be 32 characters and contain only letters and numbers".to_owned());
                 }
             }
